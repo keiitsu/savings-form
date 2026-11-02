@@ -25,7 +25,7 @@ label{display:inline-block;margin:4px 6px 4px 0}
 </style></head><body>
 <h1>優惠儲蓄專案</h1>
 <div class="bar"><button class="p" id="dictAll">🎙 整份口述</button><button onclick="ocrCam.click()">📷 拍照辨識手寫</button><button onclick="ocr.click()">🖼 從相簿選圖</button><input id="ocrCam" type="file" accept="image/*" capture="environment" hidden><input id="ocr" type="file" accept="image/*" hidden><span id="saved" style="font-size:14px;color:#2e7d32;align-self:center"></span>
-<button class="p" onclick="exportDocx()">⬇ 匯出 Word</button><button onclick="clearAll()">清除</button></div>
+<button class="p" onclick="exportDocx()">⬇ 匯出 Word</button><button class="p" id="cloudBtn" onclick="saveCloud()" style="background:#2e7d32">☁️ 存到雲端</button><button onclick="setUrl()">⚙️ 雲端設定</button><button onclick="clearAll()">清除</button></div>
 <div id="hint">此瀏覽器（iPad Safari）不支援網頁語音辨識。請點欄位後按鍵盤上的 🎤 聽寫，或用 Apple Pencil「隨手寫」直接在欄位中手寫。</div><div id="st"></div>
 <div class="wrap"><div class="card">
 <p>現在時間 <input type="text" id="now" style="width:200px"> 約訪時間 <input type="text" id="appt" style="width:200px"><button class="mic" data-f="appt">🎤</button></p>
@@ -92,7 +92,7 @@ const runOcr=async e=>{const f=e.target.files[0];if(!f)return;say("手寫辨識�
 ocr.onchange=runOcr;ocrCam.onchange=runOcr;
 function clearAll(){if(!confirm('確定清除全部？'))return;document.querySelectorAll('input[type=text],textarea').forEach(i=>i.value="");document.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);grid={};paint();stamp();localStorage.removeItem(LS)}
 // ---- DOCX ----
-function exportDocx(){const D=docx;const v=id=>document.getElementById(id).value;const ck=(k)=>CB[k].map((x,i)=>(document.getElementById(k+i).checked?"☑":"☐")+x).join(" ");
+function exportDocx(cloud){const D=docx;const v=id=>document.getElementById(id).value;const ck=(k)=>CB[k].map((x,i)=>(document.getElementById(k+i).checked?"☑":"☐")+x).join(" ");
  const B={style:D.BorderStyle.SINGLE,size:6,color:"000000"},BR={top:B,bottom:B,left:B,right:B};
  const P=(t,o={})=>new D.Paragraph({alignment:o.c?D.AlignmentType.CENTER:undefined,children:[new D.TextRun({text:t,bold:o.b,size:o.s||24,font:"標楷體"})]});
  const C=(ch,w,o={})=>new D.TableCell({width:{size:w,type:D.WidthType.DXA},borders:BR,verticalAlign:D.VerticalAlign.CENTER,shading:o.sh?{fill:o.sh,type:D.ShadingType.CLEAR}:undefined,children:(Array.isArray(ch)?ch:[ch]).map(x=>typeof x=="string"?P(x,o):x)});
@@ -103,11 +103,25 @@ function exportDocx(){const D=docx;const v=id=>document.getElementById(id).value
  const outer=new D.Table({width:{size:9300,type:D.WidthType.DXA},borders:{...NB,insideHorizontal:{style:D.BorderStyle.NONE},insideVertical:{style:D.BorderStyle.NONE}},rows:[new D.TableRow({children:[new D.TableCell({borders:NB,width:{size:5800,type:D.WidthType.DXA},children:[form,P("")]}),new D.TableCell({borders:NB,width:{size:3500,type:D.WidthType.DXA},children:[g,P("")]})]})]});
  const doc=new D.Document({sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:900,bottom:900,left:900,right:900}}},children:[
   P("優惠儲蓄專案",{b:1,c:1,s:36}),P(`現在時間：${v('now')}　　　約訪時間：${v('appt')}`),outer,P(ck('bot')),P(""),P("備註：",{b:1}),...v('notes').split("\n").map(l=>P(l))]}]});
+ if(cloud===true)return D.Packer.toBlob(doc);
  D.Packer.toBlob(doc).then(async b=>{const fn=`優惠儲蓄專案_${v('name')||'未命名'}.docx`;
  const file=new File([b],fn,{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:fn});say("已分享／儲存 Word");return}catch(e){if(e.name=="AbortError")return}}
  const u=URL.createObjectURL(file);const a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();
  say("已匯出 Word（若未下載，請點此開啟）");st.innerHTML+=` <a href="${u}" download="${fn}" target="_blank">開啟 ${fn}</a>`})}
+// ---- cloud ----
+const CU="savingsFormCloudUrl";
+function setUrl(){const u=prompt("貼上 Apps Script 網頁應用程式網址（https://script.google.com/macros/s/…/exec）",localStorage.getItem(CU)||"");if(u!==null){localStorage.setItem(CU,u.trim());say(u.trim()?"已儲存雲端網址":"已清除雲端網址")}}
+function fieldsObj(){const v=id=>document.getElementById(id).value;const ck=k=>CB[k].filter((x,i)=>document.getElementById(k+i).checked).join("、");
+ return {"現在時間":v('now'),"約訪時間":v('appt'),"縣市":v('city'),"區域":v('area'),"學校":v('school'),"年":v('grade'),"班":v('cls'),"F":v('floor'),"辦公室":v('office'),"姓名":v('name'),"性別":v('gender'),"生日":v('bday'),"電話":v('phone'),"分機":v('ext'),
+ "理財方式":ck('fin'),"近期有無聽過":ck('heard'),"理財規劃":ck('plan'),"一個月1萬是否有壓力":ck('press'),"其他勾選":ck('bot'),"可約時段":Object.keys(grid).filter(k=>grid[k]).map(k=>"週"+k).join("、"),"備註":v('notes')}}
+async function saveCloud(){const u=localStorage.getItem(CU);if(!u){say("請先按「⚙️ 雲端設定」貼上網址");setUrl();return}
+ cloudBtn.disabled=true;say("上傳中…");try{const b=await exportDocx(true);
+ const b64=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(",")[1]);fr.readAsDataURL(b)});
+ const fn=`優惠儲蓄專案_${document.getElementById('name').value||'未命名'}_${new Date().toISOString().slice(0,10)}.docx`;
+ const res=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({filename:fn,docxBase64:b64,fields:fieldsObj()})});
+ const j=await res.json();if(j.ok){st.innerHTML=`✅ 已存到雲端：<a href="${j.url}" target="_blank">${j.name}</a>（名單已新增一列）`}else say("雲端錯誤："+j.error)}
+ catch(e){say("上傳失敗（請確認網址與部署權限為「所有人」）："+e)}finally{cloudBtn.disabled=false}}
 // ---- drafts & PWA ----
 const LS="savingsFormDraft";function save(){const d={g:grid};document.querySelectorAll('input[type=text],textarea').forEach(i=>d[i.id]=i.value);document.querySelectorAll('input[type=checkbox]').forEach(c=>d[c.id]=c.checked);localStorage.setItem(LS,JSON.stringify(d));saved.textContent="草稿已自動儲存 "+new Date().toLocaleTimeString().slice(0,5)}
 try{const d=JSON.parse(localStorage.getItem(LS)||"null");if(d){grid=d.g||{};for(const k in d){const el=document.getElementById(k);if(!el||k=="g")continue;if(el.type=="checkbox")el.checked=d[k];else el.value=d[k]}paint()}}catch(e){}
