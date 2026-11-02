@@ -22,6 +22,7 @@ label{display:inline-block;margin:4px 6px 4px 0}
 .g td{height:46px;font-size:26px;-webkit-tap-highlight-color:transparent}
 .hide{display:none!important}#hint{background:#fff8e1;padding:8px;border-radius:6px;display:none}
 @media(max-width:820px){th.l{width:70px;letter-spacing:0}.card{flex-basis:100%}}
+.bd{display:flex;flex-wrap:wrap;gap:6px}.bd select,.bd input{font-size:18px;min-height:44px;padding:4px}
 </style></head><body>
 <h1>優惠儲蓄專案</h1>
 <div class="bar"><button class="p" id="dictAll">🎙 整份口述</button><button onclick="ocrCam.click()">📷 拍照辨識手寫</button><button onclick="ocr.click()">🖼 從相簿選圖</button><input id="ocrCam" type="file" accept="image/*" capture="environment" hidden><input id="ocr" type="file" accept="image/*" hidden><span id="saved" style="font-size:14px;color:#2e7d32;align-self:center"></span>
@@ -44,7 +45,7 @@ ft.innerHTML=`<tr><th class=l>縣 市</th><td>${inp('city','35%')} 區域：${in
 <tr><th class=l>學 校</th><td>${inp('school')}</td></tr>
 <tr><th class=l>班 級</th><td>${inp('grade','12%')}年 ${inp('cls','12%')}班 ${inp('floor','10%')}F ${inp('office','15%')}辦公室</td></tr>
 <tr><th class=l>姓 名</th><td>${inp('name','45%')} 性別 ${inp('gender','15%')}</td></tr>
-<tr><th class=l>生 日</th><td>${inp('bday')}</td></tr>
+<tr><th class=l>生 日</th><td><div class="bd"><select id="bdY"></select><select id="bdM"></select><select id="bdD"></select><input type="date" id="bdCal" min="1940-01-01" title="月曆"></div><input type="text" id="bday" placeholder="民國71年11月20日（1982/11/20）" style="width:100%;margin-top:6px"></td></tr>
 <tr><th class=l>電 話</th><td>${inp('phone','50%')} # ${inp('ext','15%')}</td></tr>
 <tr><th class=l>理財方式</th><td>${cbs('fin')}<br>近期有無聽過? ${cbs('heard')}</td></tr>
 <tr><th class=l>理財規劃</th><td>${cbs('plan')}<br>一個月1萬是否有壓力? ${cbs('press')}</td></tr>`;
@@ -90,7 +91,7 @@ const runOcr=async e=>{const f=e.target.files[0];if(!f)return;say("手寫辨識�
  const ph=txt.replace(/\s/g,"").match(/09\d{8}/);if(ph&&!phone.value)phone.value=ph[0];
  parse(txt.replace(/\n/g," "));say("辨識完成：結果已放入備註並嘗試自動填欄，手寫準確度有限請人工校正")}catch(err){say("辨識失敗："+err)}};
 ocr.onchange=runOcr;ocrCam.onchange=runOcr;
-function clearAll(){if(!confirm('確定清除全部？'))return;document.querySelectorAll('input[type=text],textarea').forEach(i=>i.value="");document.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);grid={};paint();stamp();localStorage.removeItem(LS)}
+function clearAll(){if(!confirm('確定清除全部？'))return;document.querySelectorAll('input[type=text],textarea').forEach(i=>i.value="");document.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);grid={};paint();stamp();[bdY,bdM,bdD,bdCal].forEach(e=>e.value="");fillD();localStorage.removeItem(LS)}
 // ---- DOCX ----
 function exportDocx(cloud){const D=docx;const v=id=>document.getElementById(id).value;const ck=(k)=>CB[k].map((x,i)=>(document.getElementById(k+i).checked?"☑":"☐")+x).join(" ");
  const B={style:D.BorderStyle.SINGLE,size:6,color:"000000"},BR={top:B,bottom:B,left:B,right:B};
@@ -109,6 +110,17 @@ function exportDocx(cloud){const D=docx;const v=id=>document.getElementById(id).
  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:fn});say("已分享／儲存 Word");return}catch(e){if(e.name=="AbortError")return}}
  const u=URL.createObjectURL(file);const a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();
  say("已匯出 Word（若未下載，請點此開啟）");st.innerHTML+=` <a href="${u}" download="${fn}" target="_blank">開啟 ${fn}</a>`})}
+// ---- birthday picker ----
+(function(){const Y=new Date().getFullYear();let h='<option value="">年</option>';for(let y=Y;y>=1940;y--)h+=`<option value="${y}">民國${y-1911}（${y}）</option>`;bdY.innerHTML=h;
+ bdM.innerHTML='<option value="">月</option>'+[...Array(12)].map((_,i)=>`<option value="${i+1}">${i+1}月</option>`).join("");bdCal.max=new Date().toISOString().slice(0,10);fillD()})();
+function fillD(){const y=+bdY.value||2000,m=+bdM.value||1,n=new Date(y,m,0).getDate(),cur=bdD.value;bdD.innerHTML='<option value="">日</option>'+[...Array(n)].map((_,i)=>`<option value="${i+1}">${i+1}日</option>`).join("");if(cur&&cur<=n)bdD.value=cur}
+function bdSet(y,m,d){const p=n=>String(n).padStart(2,'0');bday.value=`民國${y-1911}年${m}月${d}日（${y}/${p(m)}/${p(d)}）`;bdCal.value=`${y}-${p(m)}-${p(d)}`;save()}
+[bdY,bdM].forEach(e=>e.addEventListener('change',fillD));
+[bdY,bdM,bdD].forEach(e=>e.addEventListener('change',()=>{if(bdY.value&&bdM.value&&bdD.value)bdSet(+bdY.value,+bdM.value,+bdD.value)}));
+bdCal.addEventListener('change',()=>{if(!bdCal.value)return;const[y,m,d]=bdCal.value.split('-').map(Number);bdY.value=y;bdM.value=m;fillD();bdD.value=d;bdSet(y,m,d)});
+function bdSync(){const m=bday.value.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/)||(()=>{const r=cnNum(bday.value).match(/(?:民國)?(\d{2,3})年(\d{1,2})月(\d{1,2})/);return r&&[0,+r[1]+1911,r[2],r[3]]})();
+ if(m){const p=n=>String(n).padStart(2,'0');bdY.value=+m[1];bdM.value=+m[2];fillD();bdD.value=+m[3];bdCal.value=`${m[1]}-${p(m[2])}-${p(m[3])}`}}
+bday.addEventListener('change',bdSync);
 // ---- cloud ----
 const CU="savingsFormCloudUrl";
 function setUrl(){const u=prompt("貼上 Apps Script 網頁應用程式網址（https://script.google.com/macros/s/…/exec）",localStorage.getItem(CU)||"");if(u!==null){localStorage.setItem(CU,u.trim());say(u.trim()?"已儲存雲端網址":"已清除雲端網址")}}
@@ -126,7 +138,7 @@ async function saveCloud(){const u=localStorage.getItem(CU);if(!u){say("請先�
 const LS="savingsFormDraft";function save(){const d={g:grid};document.querySelectorAll('input[type=text],textarea').forEach(i=>d[i.id]=i.value);document.querySelectorAll('input[type=checkbox]').forEach(c=>d[c.id]=c.checked);localStorage.setItem(LS,JSON.stringify(d));saved.textContent="草稿已自動儲存 "+new Date().toLocaleTimeString().slice(0,5)}
 try{const d=JSON.parse(localStorage.getItem(LS)||"null");if(d){grid=d.g||{};for(const k in d){const el=document.getElementById(k);if(!el||k=="g")continue;if(el.type=="checkbox")el.checked=d[k];else el.value=d[k]}paint()}}catch(e){}
 document.addEventListener('input',save);document.addEventListener('change',save);document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('.g'))save()});
-const _p=parse;parse=t=>{_p(t);save()};
+const _p=parse;parse=t=>{_p(t);bdSync();save()};bdSync();
 if(!SR){document.querySelectorAll('.mic').forEach(b=>b.classList.add('hide'));dictAll.classList.add('hide');hint.style.display='block'}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 </script></body></html>
