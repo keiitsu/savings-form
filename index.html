@@ -1,0 +1,118 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="儲蓄表單"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="theme-color" content="#1565c0">
+<title>優惠儲蓄專案｜語音/手寫轉 Word</title>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+body{font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;max-width:1000px;margin:auto;padding:12px;background:#f6f6f6}
+h1{text-align:center;letter-spacing:4px}.bar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+button{padding:8px 12px;border-radius:6px;border:1px solid #888;background:#fff;cursor:pointer}button.p{background:#1565c0;color:#fff;border:0}
+.wrap{display:flex;flex-wrap:wrap;gap:16px}.card{background:#fff;padding:12px;border-radius:8px;flex:1 1 420px}
+table{border-collapse:collapse;width:100%}td,th{border:1px solid #333;padding:4px}th.l{width:90px;letter-spacing:6px}
+input[type=text]{width:calc(100% - 44px);padding:4px;border:1px solid #ccc}.mic{padding:2px 6px}.mic.on{background:#e53935;color:#fff}
+.g td{text-align:center;height:30px;cursor:pointer;font-size:20px}.g td.on{background:#e3f2fd}
+textarea{width:100%;height:110px}#st{color:#c62828;min-height:1.2em}
+body{font-size:18px;padding:12px max(12px,env(safe-area-inset-left)) 40px}
+button,label>button{min-height:48px;min-width:48px;font-size:18px}
+input[type=text],textarea{font-size:18px;min-height:44px;box-sizing:border-box}
+input[type=checkbox]{width:28px;height:28px;vertical-align:middle;margin:6px}
+label{display:inline-block;margin:4px 6px 4px 0}
+.g td{height:46px;font-size:26px;-webkit-tap-highlight-color:transparent}
+.mic.hide{display:none}#hint{background:#fff8e1;padding:8px;border-radius:6px;display:none}
+@media(max-width:820px){th.l{width:70px;letter-spacing:0}.card{flex-basis:100%}}
+</style></head><body>
+<h1>優惠儲蓄專案</h1>
+<div class="bar"><button class="p" id="dictAll">🎙 整份口述</button><button onclick="ocrCam.click()">📷 拍照辨識手寫</button><button onclick="ocr.click()">🖼 從相簿選圖</button><input id="ocrCam" type="file" accept="image/*" capture="environment" hidden><input id="ocr" type="file" accept="image/*" hidden><span id="saved" style="font-size:14px;color:#2e7d32;align-self:center"></span>
+<button class="p" onclick="exportDocx()">⬇ 匯出 Word</button><button onclick="clearAll()">清除</button></div>
+<div id="hint">此瀏覽器（iPad Safari）不支援網頁語音辨識。請點欄位後按鍵盤上的 🎤 聽寫，或用 Apple Pencil「隨手寫」直接在欄位中手寫。</div><div id="st"></div>
+<div class="wrap"><div class="card">
+<p>現在時間 <input type="text" id="now" style="width:200px"> 約訪時間 <input type="text" id="appt" style="width:200px"><button class="mic" data-f="appt">🎤</button></p>
+<table id="ft"></table>
+<p id="bot"></p></div>
+<div class="card"><b>可約時段（點擊打勾）</b><table class="g" id="grid"></table>
+<b>備註</b> <button class="mic" data-f="notes">🎤</button><textarea id="notes"></textarea></div></div>
+<p style="font-size:12px;color:#666">口述範例：「縣市台北市 區域大安區 學校仁愛國小 年級三年 班級二班 姓名王小明 性別女 生日七十一年十一月二十日 電話0953372051 分機123 理財方式定存 基金 有聽過 自行規劃 沒有壓力 陌生 星期三第二節 星期五第六節 約訪時間週三下午」。建議使用 Chrome / Edge。</p>
+<script>
+const F=[["city","縣 市"],["area","區域"],["school","學 校"],["grade","年"],["cls","班"],["floor","F"],["office","辦公室"],["name","姓 名"],["gender","性別"],["bday","生 日"],["phone","電 話"],["ext","#分機"]];
+const CB={fin:["定存","優存","基金","股票","儲蓄險"],heard:["無","有"],plan:["自行規劃","配偶規劃","父母規劃"],press:["有","沒有"],bot:["陌生","壽險","2.4%","4.25%","10年"]};
+const DAYS=["一","二","三","四","五"],PER=["1","2","3","4","午","5","6","7"];let grid={};
+const inp=(id,w)=>`<input type="text" id="${id}" style="width:${w||'70%'}"><button class="mic" data-f="${id}">🎤</button>`;
+const cbs=k=>CB[k].map((v,i)=>`<label><input type="checkbox" id="${k}${i}">${v}</label>`).join(" ");
+ft.innerHTML=`<tr><th class=l>縣 市</th><td>${inp('city','35%')} 區域：${inp('area','30%')}</td></tr>
+<tr><th class=l>學 校</th><td>${inp('school')}</td></tr>
+<tr><th class=l>班 級</th><td>${inp('grade','12%')}年 ${inp('cls','12%')}班 ${inp('floor','10%')}F ${inp('office','15%')}辦公室</td></tr>
+<tr><th class=l>姓 名</th><td>${inp('name','45%')} 性別 ${inp('gender','15%')}</td></tr>
+<tr><th class=l>生 日</th><td>${inp('bday')}</td></tr>
+<tr><th class=l>電 話</th><td>${inp('phone','50%')} # ${inp('ext','15%')}</td></tr>
+<tr><th class=l>理財方式</th><td>${cbs('fin')}<br>近期有無聽過? ${cbs('heard')}</td></tr>
+<tr><th class=l>理財規劃</th><td>${cbs('plan')}<br>一個月1萬是否有壓力? ${cbs('press')}</td></tr>`;
+bot.innerHTML=cbs('bot');
+grid_html="<tr><th></th>"+DAYS.map(d=>`<th>${d}</th>`).join("")+"</tr>"+PER.map(p=>"<tr><th>"+p+"</th>"+DAYS.map(d=>`<td data-k="${d}${p}"></td>`).join("")+"</tr>").join("");
+document.getElementById('grid').innerHTML=grid_html;
+document.querySelectorAll('.g td').forEach(td=>td.onclick=()=>{grid[td.dataset.k]=!grid[td.dataset.k];paint()});
+function paint(){document.querySelectorAll('.g td').forEach(td=>{const o=!!grid[td.dataset.k];td.textContent=o?"✓":"";td.classList.toggle('on',o)})}
+const pad=n=>String(n).padStart(2,'0');function stamp(){const d=new Date();now.value=`${d.getFullYear()-1911}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`}stamp();
+const say=t=>st.textContent=t;
+// ---- speech ----
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function listen(cb,btn,cont){if(!SR){say("此瀏覽器不支援語音辨識，請用 Chrome 或 Edge");return}
+ const r=new SR();r.lang="zh-TW";r.interimResults=false;r.continuous=!!cont;let all="";
+ r.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)all+=e.results[i][0].transcript;say("聽到："+all)};
+ r.onerror=e=>say("語音錯誤："+e.error);r.onend=()=>{btn&&btn.classList.remove('on');cb(all)};
+ r.start();btn&&btn.classList.add('on');say("聆聽中…（再按一次停止）");btn&&(btn._r=r)}
+document.querySelectorAll('.mic').forEach(b=>b.onclick=()=>{if(b._r&&b.classList.contains('on')){b._r.stop();return}
+ listen(t=>{const el=document.getElementById(b.dataset.f);el.value=(el.value?el.value+(el.tagName=="TEXTAREA"?"\n":""):"")+t},b,b.dataset.f=="notes")});
+dictAll.onclick=()=>{if(dictAll._r&&dictAll.classList.contains('on')){dictAll._r.stop();return}listen(t=>{parse(t)},dictAll,true)};
+const CN={"零":0,"〇":0,"一":1,"二":2,"兩":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9};
+function cnNum(s){return s.replace(/[零〇一二兩三四五六七八九十]+/g,m=>{if(!/十/.test(m))return m.split("").map(c=>CN[c]).join("");const [a,b]=m.split("十");return String((a?CN[a]:1)*10+(b?CN[b]:0))})}
+const KEYS=[["city","縣市"],["area","區域"],["school","學校"],["grade","年級"],["cls","班級"],["floor","樓層"],["office","辦公室"],["name","姓名"],["gender","性別"],["bday","生日"],["phone","電話"],["ext","分機"],["appt","約訪時間"],["notes","備註"]];
+const STOP=KEYS.map(k=>k[1]).concat(["理財方式","理財","有聽過","沒聽過","星期","禮拜","週","周","壓力","規劃"]);
+var parse=function(raw){let t=raw.replace(/[，。,\.]/g," ");
+ KEYS.forEach(([id,k])=>{const i=t.indexOf(k);if(i<0)return;let rest=t.slice(i+k.length).replace(/^[\s:：是為]+/,"");
+  let end=rest.length;STOP.forEach(s=>{const j=rest.indexOf(s);if(j>0&&j<end)end=j});
+  let v=rest.slice(0,end).trim();if(["phone","ext","grade","cls","floor"].includes(id))v=cnNum(v).replace(/[^\d\-]/g,"");
+  if(id=="grade")v=v||"";if(v)document.getElementById(id).value=v});
+ const set=(k,i)=>document.getElementById(k+i).checked=true;
+ CB.fin.forEach((v,i)=>{if(t.includes(v))set('fin',i)});
+ if(/沒聽過|沒有聽過|無聽過/.test(t))set('heard',0);else if(/有聽過/.test(t))set('heard',1);
+ CB.plan.forEach((v,i)=>{if(t.includes(v)||t.includes(v.slice(0,2)+"規劃"))set('plan',i)});if(/自己規劃/.test(t))set('plan',0);
+ if(/沒有壓力|沒壓力|不會有壓力/.test(t))set('press',1);else if(/有壓力/.test(t))set('press',0);
+ CB.bot.forEach((v,i)=>{if(t.replace(/點/g,".").includes(v)||(v=="10年"&&/十年/.test(t)))set('bot',i)});
+ const re=/(?:星期|禮拜|週|周)([一二三四五])\s*(?:第)?([一二三四五六七1-7]|中午|午)節?/g;let m;
+ while(m=re.exec(t)){let p=m[2];p=/午/.test(p)?"午":cnNum(p);grid[m[1]+p]=true}paint();
+ const n=document.getElementById('notes');n.value=(n.value?n.value+"\n":"")+"［口述原文］"+raw;say("已解析口述並填入，請檢查修正")}
+// ---- OCR ----
+const runOcr=async e=>{const f=e.target.files[0];if(!f)return;say("手寫辨識中（首次需下載中文模型約 20MB）…");
+ try{const r=await Tesseract.recognize(f,"chi_tra+eng",{logger:m=>m.status&&say(`${m.status} ${Math.round((m.progress||0)*100)}%`)});
+ const txt=r.data.text;const n=document.getElementById('notes');n.value=(n.value?n.value+"\n":"")+"［手寫辨識］"+txt.trim();
+ const ph=txt.replace(/\s/g,"").match(/09\d{8}/);if(ph&&!phone.value)phone.value=ph[0];
+ parse(txt.replace(/\n/g," "));say("辨識完成：結果已放入備註並嘗試自動填欄，手寫準確度有限請人工校正")}catch(err){say("辨識失敗："+err)}};
+ocr.onchange=runOcr;ocrCam.onchange=runOcr;
+function clearAll(){if(!confirm('確定清除全部？'))return;document.querySelectorAll('input[type=text],textarea').forEach(i=>i.value="");document.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);grid={};paint();stamp();localStorage.removeItem(LS)}
+// ---- DOCX ----
+function exportDocx(){const D=docx;const v=id=>document.getElementById(id).value;const ck=(k)=>CB[k].map((x,i)=>(document.getElementById(k+i).checked?"☑":"☐")+x).join(" ");
+ const B={style:D.BorderStyle.SINGLE,size:6,color:"000000"},BR={top:B,bottom:B,left:B,right:B};
+ const P=(t,o={})=>new D.Paragraph({alignment:o.c?D.AlignmentType.CENTER:undefined,children:[new D.TextRun({text:t,bold:o.b,size:o.s||24,font:"標楷體"})]});
+ const C=(ch,w,o={})=>new D.TableCell({width:{size:w,type:D.WidthType.DXA},borders:BR,verticalAlign:D.VerticalAlign.CENTER,shading:o.sh?{fill:o.sh,type:D.ShadingType.CLEAR}:undefined,children:(Array.isArray(ch)?ch:[ch]).map(x=>typeof x=="string"?P(x,o):x)});
+ const rows=[["縣　市",`${v('city')}　　區域：${v('area')}`],["學　校",v('school')],["班　級",`${v('grade')} 年 ${v('cls')} 班　${v('floor')} F　${v('office')} 辦公室`],["姓　名",`${v('name')}　　性別：${v('gender')}`],["生　日",v('bday')],["電　話",`${v('phone')}　# ${v('ext')}`],["理財方式",[ck('fin'),"近期有無聽過? "+ck('heard')]],["理財規劃",[ck('plan'),"一個月1萬是否有壓力? "+ck('press')]]];
+ const form=new D.Table({width:{size:5600,type:D.WidthType.DXA},rows:rows.map(([a,b])=>new D.TableRow({height:{value:520,rule:D.HeightRule.ATLEAST},children:[C(a,1300,{b:1,c:1}),C(b,4300)]}))});
+ const g=new D.Table({width:{size:3400,type:D.WidthType.DXA},rows:[new D.TableRow({children:[C("",500),...DAYS.map(d=>C(d,580,{c:1}))]}),...PER.map(p=>new D.TableRow({height:{value:p=="午"?300:500,rule:D.HeightRule.ATLEAST},children:[C(p,500,{c:1}),...DAYS.map(d=>C(grid[d+p]?"✓":"",580,{c:1,b:1}))]}))]});
+ const NB={top:{style:D.BorderStyle.NONE},bottom:{style:D.BorderStyle.NONE},left:{style:D.BorderStyle.NONE},right:{style:D.BorderStyle.NONE}};
+ const outer=new D.Table({width:{size:9300,type:D.WidthType.DXA},borders:{...NB,insideHorizontal:{style:D.BorderStyle.NONE},insideVertical:{style:D.BorderStyle.NONE}},rows:[new D.TableRow({children:[new D.TableCell({borders:NB,width:{size:5800,type:D.WidthType.DXA},children:[form,P("")]}),new D.TableCell({borders:NB,width:{size:3500,type:D.WidthType.DXA},children:[g,P("")]})]})]});
+ const doc=new D.Document({sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:900,bottom:900,left:900,right:900}}},children:[
+  P("優惠儲蓄專案",{b:1,c:1,s:36}),P(`現在時間：${v('now')}　　　約訪時間：${v('appt')}`),outer,P(ck('bot')),P(""),P("備註：",{b:1}),...v('notes').split("\n").map(l=>P(l))]}]});
+ D.Packer.toBlob(doc).then(async b=>{const fn=`優惠儲蓄專案_${v('name')||'未命名'}.docx`;
+ const file=new File([b],fn,{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+ if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:fn});say("已分享／儲存 Word");return}catch(e){if(e.name=="AbortError")return}}
+ const u=URL.createObjectURL(file);const a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();
+ say("已匯出 Word（若未下載，請點此開啟）");st.innerHTML+=` <a href="${u}" download="${fn}" target="_blank">開啟 ${fn}</a>`})}
+// ---- drafts & PWA ----
+const LS="savingsFormDraft";function save(){const d={g:grid};document.querySelectorAll('input[type=text],textarea').forEach(i=>d[i.id]=i.value);document.querySelectorAll('input[type=checkbox]').forEach(c=>d[c.id]=c.checked);localStorage.setItem(LS,JSON.stringify(d));saved.textContent="草稿已自動儲存 "+new Date().toLocaleTimeString().slice(0,5)}
+try{const d=JSON.parse(localStorage.getItem(LS)||"null");if(d){grid=d.g||{};for(const k in d){const el=document.getElementById(k);if(!el||k=="g")continue;if(el.type=="checkbox")el.checked=d[k];else el.value=d[k]}paint()}}catch(e){}
+document.addEventListener('input',save);document.addEventListener('change',save);document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('.g'))save()});
+const _p=parse;parse=t=>{_p(t);save()};
+if(!SR){document.querySelectorAll('.mic').forEach(b=>b.classList.add('hide'));dictAll.classList.add('hide');hint.style.display='block'}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+</script></body></html>
