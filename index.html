@@ -119,7 +119,7 @@ function bdSet(y,m,d){const p=n=>String(n).padStart(2,'0');bday.value=`民國${y
 [bdY,bdM,bdD].forEach(e=>e.addEventListener('change',()=>{if(bdY.value&&bdM.value&&bdD.value)bdSet(+bdY.value,+bdM.value,+bdD.value)}));
 bdCal.addEventListener('change',()=>{if(!bdCal.value)return;const[y,m,d]=bdCal.value.split('-').map(Number);bdY.value=y;bdM.value=m;fillD();bdD.value=d;bdSet(y,m,d)});
 function bdSync(){const m=bday.value.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/)||(()=>{const r=cnNum(bday.value).match(/(?:民國)?(\d{2,3})年(\d{1,2})月(\d{1,2})/);return r&&[0,+r[1]+1911,r[2],r[3]]})();
- if(m){const p=n=>String(n).padStart(2,'0');bdY.value=+m[1];bdM.value=+m[2];fillD();bdD.value=+m[3];bdCal.value=`${m[1]}-${p(m[2])}-${p(m[3])}`}}
+ if(m){const p=n=>String(n).padStart(2,'0');bdY.value=+m[1];bdM.value=+m[2];fillD();bdD.value=+m[3];bdCal.value=`${m[1]}-${p(m[2])}-${p(m[3])}`;bday.value=`民國${m[1]-1911}年${+m[2]}月${+m[3]}日（${m[1]}/${p(m[2])}/${p(m[3])}）`}}
 bday.addEventListener('change',bdSync);
 // ---- cloud ----
 const CU="savingsFormCloudUrl";
