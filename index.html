@@ -24,7 +24,7 @@ label{display:inline-block;margin:4px 6px 4px 0}
 @media(max-width:820px){th.l{width:70px;letter-spacing:0}.card{flex-basis:100%}}
 .bd{display:flex;flex-wrap:wrap;gap:6px}.bd select,.bd input{font-size:18px;min-height:44px;padding:4px}
 </style></head><body>
-<h1>優惠儲蓄專案</h1>
+<h1>優惠儲蓄專案</h1><div id="ver" style="text-align:center;font-size:13px;color:#666">版本 v7・2026-11-03</div>
 <div class="bar"><button class="p" id="dictAll">🎙 整份口述</button><button onclick="ocrCam.click()">📷 拍照辨識手寫</button><button onclick="ocr.click()">🖼 從相簿選圖</button><input id="ocrCam" type="file" accept="image/*" capture="environment" hidden><input id="ocr" type="file" accept="image/*" hidden><span id="saved" style="font-size:14px;color:#2e7d32;align-self:center"></span>
 <button class="p" onclick="exportDocx()">⬇ 匯出 Word</button><button class="p" id="cloudBtn" onclick="saveCloud()" style="background:#2e7d32">☁️ 存到雲端</button><button onclick="setUrl()">⚙️ 雲端設定</button><button onclick="clearAll()">清除</button></div>
 <div id="hint">此瀏覽器（iPad Safari）不支援網頁語音辨識。請點欄位後按鍵盤上的 🎤 聽寫，或用 Apple Pencil「隨手寫」直接在欄位中手寫。</div><div id="st"></div>
@@ -54,7 +54,7 @@ grid_html="<tr><th></th>"+DAYS.map(d=>`<th>${d}</th>`).join("")+"</tr>"+PER.map(
 document.getElementById('grid').innerHTML=grid_html;
 document.querySelectorAll('.g td').forEach(td=>td.onclick=()=>{grid[td.dataset.k]=!grid[td.dataset.k];paint()});
 function paint(){document.querySelectorAll('.g td').forEach(td=>{const o=!!grid[td.dataset.k];td.textContent=o?"✓":"";td.classList.toggle('on',o)})}
-const pad=n=>String(n).padStart(2,'0');function stamp(){const d=new Date();now.value=`${d.getFullYear()-1911}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`}stamp();
+const APPVER='v7・2026-11-03';const pad=n=>String(n).padStart(2,'0');function stamp(){const d=new Date();now.value=`${d.getFullYear()-1911}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`}stamp();
 const say=t=>st.textContent=t;
 // ---- speech ----
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -100,7 +100,7 @@ function exportDocx(cloud){const D=docx;const v=id=>document.getElementById(id).
  const rows=[["縣　市",`${v('city')}　　區域：${v('area')}`],["學　校",v('school')],["班　級",`${v('grade')} 年 ${v('cls')} 班　${v('floor')} F　${v('office')} 辦公室`],["姓　名",`${v('name')}　　性別：${v('gender')}`],["生　日",v('bday')],["電　話",`${v('phone')}　# ${v('ext')}`],["理財方式",[ck('fin'),"近期有無聽過? "+ck('heard')]],["理財規劃",[ck('plan'),"一個月1萬是否有壓力? "+ck('press')]]];
  const form=new D.Table({layout:D.TableLayoutType.FIXED,columnWidths:[1800,8300],width:{size:10100,type:D.WidthType.DXA},rows:rows.map(([a,b])=>new D.TableRow({height:{value:520,rule:D.HeightRule.ATLEAST},children:[C(a,1800,{b:1,c:1}),C(b,8300)]}))});
  const g=new D.Table({layout:D.TableLayoutType.FIXED,columnWidths:[1100,1800,1800,1800,1800,1800],width:{size:10100,type:D.WidthType.DXA},rows:[new D.TableRow({children:[C("節",1100,{c:1,b:1}),...DAYS.map(d=>C("星期"+d,1800,{c:1,b:1}))]}),...PER.map(p=>new D.TableRow({height:{value:p=="午"?300:500,rule:D.HeightRule.ATLEAST},children:[C(p,1100,{c:1}),...DAYS.map(d=>C(grid[d+p]?"✔":"",1800,{c:1,b:1}))]}))]});
- const doc=new D.Document({styles:{default:{document:{run:{font:{ascii:"Arial",hAnsi:"Arial",eastAsia:"Noto Sans TC"},size:24}}}},sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:900,bottom:900,left:900,right:900}}},children:[
+ const doc=new D.Document({styles:{default:{document:{run:{font:{ascii:"Arial",hAnsi:"Arial",eastAsia:"Noto Sans TC"},size:24}}}},sections:[{footers:{default:new D.Footer({children:[P("表單版本 "+APPVER,{s:16})]})},properties:{page:{size:{width:11906,height:16838},margin:{top:900,bottom:900,left:900,right:900}}},children:[
   P("優惠儲蓄專案",{b:1,c:1,s:36}),P(`現在時間：${v('now')}　　　約訪時間：${v('appt')}`),form,P(""),P("可約時段（✔ = 可約）",{b:1}),g,P(""),P(ck('bot')),P(""),P("備註：",{b:1}),...v('notes').split("\n").map(l=>P(l))]}]});
  if(cloud===true)return D.Packer.toBlob(doc);
  D.Packer.toBlob(doc).then(async b=>{const fn=`優惠儲蓄專案_${v('name')||'未命名'}.docx`;
@@ -138,5 +138,5 @@ try{const d=JSON.parse(localStorage.getItem(LS)||"null");if(d){grid=d.g||{};for(
 document.addEventListener('input',save);document.addEventListener('change',save);document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('.g'))save()});
 const _p=parse;parse=t=>{_p(t);bdSync();save()};bdSync();
 if(!SR){document.querySelectorAll('.mic').forEach(b=>b.classList.add('hide'));dictAll.classList.add('hide');hint.style.display='block'}
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update());
 </script></body></html>
