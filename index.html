@@ -23,13 +23,18 @@ label{display:inline-block;margin:4px 6px 4px 0}
 .hide{display:none!important}#hint{background:#fff8e1;padding:8px;border-radius:6px;display:none}
 @media(max-width:820px){th.l{width:70px;letter-spacing:0}.card{flex-basis:100%}}
 .bd{display:flex;flex-wrap:wrap;gap:6px}.bd select,.bd input{font-size:18px;min-height:44px;padding:4px}
+.appt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}.appt input,.appt select{font-size:18px;min-height:44px}#apptDT{min-width:230px}
 </style></head><body>
-<h1>優惠儲蓄專案</h1><div id="ver" style="text-align:center;font-size:13px;color:#666">版本 v8・2026-11-03</div>
+<h1>優惠儲蓄專案</h1><div id="ver" style="text-align:center;font-size:13px;color:#666">版本 v9・2026-11-03</div>
 <div class="bar"><button onclick="ocrCam.click()">📷 拍照辨識手寫</button><button onclick="ocr.click()">🖼 從相簿選圖</button><input id="ocrCam" type="file" accept="image/*" capture="environment" hidden><input id="ocr" type="file" accept="image/*" hidden><span id="saved" style="font-size:14px;color:#2e7d32;align-self:center"></span>
 <button class="p" onclick="exportDocx()">⬇ 匯出 Word</button><button class="p" id="cloudBtn" onclick="saveCloud()" style="background:#2e7d32">☁️ 存到雲端</button><button onclick="setUrl()">⚙️ 雲端設定</button><button onclick="clearAll()">清除</button></div>
 <div id="st"></div>
 <div class="wrap"><div class="card">
-<p>現在時間 <input type="text" id="now" style="width:200px"> 約訪時間 <input type="text" id="appt" style="width:200px"></p>
+<p>現在時間 <input type="text" id="now" style="width:220px"></p>
+<div class="appt"><b>約訪時間</b><input type="datetime-local" id="apptDT" step="300">
+<select id="dur"><option value="30">30 分鐘</option><option value="60" selected>60 分鐘</option><option value="90">90 分鐘</option><option value="120">120 分鐘</option></select>
+<input type="text" id="appt" readonly placeholder="選擇日期時間後顯示" style="background:#f3f3f3">
+<input type="text" id="loc" placeholder="地點（預設：學校／縣市區域）"></div>
 <table id="ft"></table>
 <p id="bot"></p></div>
 <div class="card"><b>可約時段（點擊打勾）</b><table class="g" id="grid"></table>
@@ -54,7 +59,7 @@ grid_html="<tr><th></th>"+DAYS.map(d=>`<th>${d}</th>`).join("")+"</tr>"+PER.map(
 document.getElementById('grid').innerHTML=grid_html;
 document.querySelectorAll('.g td').forEach(td=>td.onclick=()=>{grid[td.dataset.k]=!grid[td.dataset.k];paint()});
 function paint(){document.querySelectorAll('.g td').forEach(td=>{const o=!!grid[td.dataset.k];td.textContent=o?"✓":"";td.classList.toggle('on',o)})}
-const APPVER='v8・2026-11-03';const pad=n=>String(n).padStart(2,'0');function stamp(){const d=new Date();now.value=`${d.getFullYear()-1911}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`}stamp();
+const APPVER='v9・2026-11-03';const pad=n=>String(n).padStart(2,'0');function stamp(){const d=new Date();now.value=`${d.getFullYear()-1911}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`}stamp();
 const say=t=>st.textContent=t;
 const CN={"零":0,"〇":0,"一":1,"二":2,"兩":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9};
 function cnNum(s){return s.replace(/[零〇一二兩三四五六七八九十]+/g,m=>{if(!/十/.test(m))return m.split("").map(c=>CN[c]).join("");const [a,b]=m.split("十");return String((a?CN[a]:1)*10+(b?CN[b]:0))})}
@@ -81,7 +86,7 @@ const runOcr=async e=>{const f=e.target.files[0];if(!f)return;say("手寫辨識�
  const ph=txt.replace(/\s/g,"").match(/09\d{8}/);if(ph&&!phone.value)phone.value=ph[0];
  parse(txt.replace(/\n/g," "));say("辨識完成：結果已放入備註並嘗試自動填欄，手寫準確度有限請人工校正")}catch(err){say("辨識失敗："+err)}};
 ocr.onchange=runOcr;ocrCam.onchange=runOcr;
-function clearAll(){if(!confirm('確定清除全部？'))return;document.querySelectorAll('input[type=text],textarea').forEach(i=>i.value="");document.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);grid={};paint();stamp();[bdY,bdM,bdD,bdCal].forEach(e=>e.value="");fillD();localStorage.removeItem(LS)}
+function clearAll(){if(!confirm('確定清除全部？'))return;document.querySelectorAll('input[type=text],textarea').forEach(i=>i.value="");document.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);grid={};paint();stamp();[bdY,bdM,bdD,bdCal,apptDT].forEach(e=>e.value="");dur.value="60";fillD();localStorage.removeItem(LS)}
 // ---- DOCX ----
 function exportDocx(cloud){const D=docx;const v=id=>document.getElementById(id).value;const ck=(k)=>CB[k].map((x,i)=>(document.getElementById(k+i).checked?"■":"□")+x).join(" ");
  const B={style:D.BorderStyle.SINGLE,size:6,color:"000000"},BR={top:B,bottom:B,left:B,right:B};
@@ -91,7 +96,7 @@ function exportDocx(cloud){const D=docx;const v=id=>document.getElementById(id).
  const form=new D.Table({layout:D.TableLayoutType.FIXED,columnWidths:[1800,8300],width:{size:10100,type:D.WidthType.DXA},rows:rows.map(([a,b])=>new D.TableRow({height:{value:520,rule:D.HeightRule.ATLEAST},children:[C(a,1800,{b:1,c:1}),C(b,8300)]}))});
  const g=new D.Table({layout:D.TableLayoutType.FIXED,columnWidths:[1100,1800,1800,1800,1800,1800],width:{size:10100,type:D.WidthType.DXA},rows:[new D.TableRow({children:[C("節",1100,{c:1,b:1}),...DAYS.map(d=>C("星期"+d,1800,{c:1,b:1}))]}),...PER.map(p=>new D.TableRow({height:{value:p=="午"?300:500,rule:D.HeightRule.ATLEAST},children:[C(p,1100,{c:1}),...DAYS.map(d=>C(grid[d+p]?"✔":"",1800,{c:1,b:1}))]}))]});
  const doc=new D.Document({styles:{default:{document:{run:{font:{ascii:"Arial",hAnsi:"Arial",eastAsia:"Noto Sans TC"},size:24}}}},sections:[{footers:{default:new D.Footer({children:[P("表單版本 "+APPVER,{s:16})]})},properties:{page:{size:{width:11906,height:16838},margin:{top:900,bottom:900,left:900,right:900}}},children:[
-  P("優惠儲蓄專案",{b:1,c:1,s:36}),P(`現在時間：${v('now')}　　　約訪時間：${v('appt')}`),form,P(""),P("可約時段（✔ = 可約）",{b:1}),g,P(""),P(ck('bot')),P(""),P("備註：",{b:1}),...v('notes').split("\n").map(l=>P(l))]}]});
+  P("優惠儲蓄專案",{b:1,c:1,s:36}),P(`現在時間：${v('now')}　　　約訪時間：${v('appt')}${v('appt')?'（'+dur.value+'分鐘）':''}`),P(`約訪地點：${v('loc')||defLoc()}`),form,P(""),P("可約時段（✔ = 可約）",{b:1}),g,P(""),P(ck('bot')),P(""),P("備註：",{b:1}),...v('notes').split("\n").map(l=>P(l))]}]});
  if(cloud===true)return D.Packer.toBlob(doc);
  D.Packer.toBlob(doc).then(async b=>{const fn=`優惠儲蓄專案_${v('name')||'未命名'}.docx`;
  const file=new File([b],fn,{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
@@ -109,24 +114,30 @@ bdCal.addEventListener('change',()=>{if(!bdCal.value)return;const[y,m,d]=bdCal.v
 function bdSync(){const m=bday.value.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/)||(()=>{const r=cnNum(bday.value).match(/(?:民國)?(\d{2,3})年(\d{1,2})月(\d{1,2})/);return r&&[0,+r[1]+1911,r[2],r[3]]})();
  if(m){const p=n=>String(n).padStart(2,'0');bdY.value=+m[1];bdM.value=+m[2];fillD();bdD.value=+m[3];bdCal.value=`${m[1]}-${p(m[2])}-${p(m[3])}`;bday.value=`民國${m[1]-1911}年${+m[2]}月${+m[3]}日（${m[1]}/${p(m[2])}/${p(m[3])}）`}}
 bday.addEventListener('change',bdSync);
+// ---- appointment ----
+function defLoc(){const v=id=>document.getElementById(id).value.trim();return [v('school'),[v('city'),v('area')].join('')].filter(Boolean).join('（')+(v('school')&&(v('city')||v('area'))?'）':'')}
+function apptFmt(){if(!apptDT.value){appt.value="";return}const d=new Date(apptDT.value),p=n=>String(n).padStart(2,'0'),w="日一二三四五六"[d.getDay()];
+ appt.value=`民國${d.getFullYear()-1911}年${d.getMonth()+1}月${d.getDate()}日（${w}）${p(d.getHours())}:${p(d.getMinutes())}（${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}）`}
+apptDT.addEventListener('change',()=>{apptFmt();save()});dur.addEventListener('change',save);
+function locPh(){loc.placeholder="地點（預設："+(defLoc()||"學校／縣市區域")+"）"}['school','city','area'].forEach(id=>document.getElementById(id).addEventListener('input',locPh));
 // ---- cloud ----
 const CU="savingsFormCloudUrl";
 function setUrl(){const u=prompt("貼上 Apps Script 網頁應用程式網址（https://script.google.com/macros/s/…/exec）",localStorage.getItem(CU)||"");if(u!==null){localStorage.setItem(CU,u.trim());say(u.trim()?"已儲存雲端網址":"已清除雲端網址")}}
 function fieldsObj(){const v=id=>document.getElementById(id).value;const ck=k=>CB[k].filter((x,i)=>document.getElementById(k+i).checked).join("、");
- return {"現在時間":v('now'),"約訪時間":v('appt'),"縣市":v('city'),"區域":v('area'),"學校":v('school'),"年":v('grade'),"班":v('cls'),"F":v('floor'),"辦公室":v('office'),"姓名":v('name'),"性別":v('gender'),"生日":v('bday'),"電話":v('phone'),"分機":v('ext'),
+ return {"現在時間":v('now'),"約訪時間":v('appt'),"約訪開始":apptDT.value?new Date(apptDT.value).toISOString():"","時長":dur.value,"地點":v('loc')||defLoc(),"縣市":v('city'),"區域":v('area'),"學校":v('school'),"年":v('grade'),"班":v('cls'),"F":v('floor'),"辦公室":v('office'),"姓名":v('name'),"性別":v('gender'),"生日":v('bday'),"電話":v('phone'),"分機":v('ext'),
  "理財方式":ck('fin'),"近期有無聽過":ck('heard'),"理財規劃":ck('plan'),"一個月1萬是否有壓力":ck('press'),"其他勾選":ck('bot'),"可約時段":Object.keys(grid).filter(k=>grid[k]).map(k=>"週"+k).join("、"),"備註":v('notes')}}
 async function saveCloud(){const u=localStorage.getItem(CU);if(!u){say("請先按「⚙️ 雲端設定」貼上網址");setUrl();return}
  cloudBtn.disabled=true;say("上傳中…");try{const b=await exportDocx(true);
  const b64=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(",")[1]);fr.readAsDataURL(b)});
  const fn=`優惠儲蓄專案_${document.getElementById('name').value||'未命名'}_${new Date().toISOString().slice(0,10)}.docx`;
  const res=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({filename:fn,docxBase64:b64,fields:fieldsObj()})});
- const j=await res.json();if(j.ok){st.innerHTML=`✅ 已存到雲端：<a href="${j.url}" target="_blank">${j.name}</a>（名單已新增一列）`}else say("雲端錯誤："+j.error)}
+ const j=await res.json();if(j.ok){st.innerHTML=`✅ 已存到雲端：<a href="${j.url}" target="_blank">${j.name}</a>（名單已${j.updated?'更新':'新增一列'}）`+(j.eventUrl?`<br>📅 已${j.updated?'更新':'建立'}行程：<a href="${j.eventUrl}" target="_blank">開啟 Google 日曆</a>`:'')}else say("雲端錯誤："+j.error)}
  catch(e){say("上傳失敗（請確認網址與部署權限為「所有人」）："+e)}finally{cloudBtn.disabled=false}}
 // ---- drafts & PWA ----
-const LS="savingsFormDraft";function save(){const d={g:grid};document.querySelectorAll('input[type=text],textarea').forEach(i=>d[i.id]=i.value);document.querySelectorAll('input[type=checkbox]').forEach(c=>d[c.id]=c.checked);localStorage.setItem(LS,JSON.stringify(d));saved.textContent="草稿已自動儲存 "+new Date().toLocaleTimeString().slice(0,5)}
-try{const d=JSON.parse(localStorage.getItem(LS)||"null");if(d){grid=d.g||{};for(const k in d){const el=document.getElementById(k);if(!el||k=="g")continue;if(el.type=="checkbox")el.checked=d[k];else el.value=d[k]}paint()}}catch(e){}
+const LS="savingsFormDraft";function save(){const d={g:grid,_apptDT:apptDT.value,_dur:dur.value};document.querySelectorAll('input[type=text],textarea').forEach(i=>d[i.id]=i.value);document.querySelectorAll('input[type=checkbox]').forEach(c=>d[c.id]=c.checked);localStorage.setItem(LS,JSON.stringify(d));saved.textContent="草稿已自動儲存 "+new Date().toLocaleTimeString().slice(0,5)}
+try{const d=JSON.parse(localStorage.getItem(LS)||"null");if(d){grid=d.g||{};if(d._apptDT)apptDT.value=d._apptDT;if(d._dur)dur.value=d._dur;for(const k in d){const el=document.getElementById(k);if(!el||k=="g"||k[0]=="_")continue;if(el.type=="checkbox")el.checked=d[k];else el.value=d[k]}paint()}}catch(e){}
 document.addEventListener('input',save);document.addEventListener('change',save);document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('.g'))save()});
-const _p=parse;parse=t=>{_p(t);bdSync();save()};bdSync();
+const _p=parse;parse=t=>{_p(t);bdSync();save()};bdSync();apptFmt();locPh();
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update());
 </script></body></html>
