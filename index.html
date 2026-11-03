@@ -93,17 +93,15 @@ const runOcr=async e=>{const f=e.target.files[0];if(!f)return;say("手寫辨識�
 ocr.onchange=runOcr;ocrCam.onchange=runOcr;
 function clearAll(){if(!confirm('確定清除全部？'))return;document.querySelectorAll('input[type=text],textarea').forEach(i=>i.value="");document.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);grid={};paint();stamp();[bdY,bdM,bdD,bdCal].forEach(e=>e.value="");fillD();localStorage.removeItem(LS)}
 // ---- DOCX ----
-function exportDocx(cloud){const D=docx;const v=id=>document.getElementById(id).value;const ck=(k)=>CB[k].map((x,i)=>(document.getElementById(k+i).checked?"☑":"☐")+x).join(" ");
+function exportDocx(cloud){const D=docx;const v=id=>document.getElementById(id).value;const ck=(k)=>CB[k].map((x,i)=>(document.getElementById(k+i).checked?"■":"□")+x).join(" ");
  const B={style:D.BorderStyle.SINGLE,size:6,color:"000000"},BR={top:B,bottom:B,left:B,right:B};
- const P=(t,o={})=>new D.Paragraph({alignment:o.c?D.AlignmentType.CENTER:undefined,children:[new D.TextRun({text:t,bold:o.b,size:o.s||24,font:"標楷體"})]});
+ const P=(t,o={})=>new D.Paragraph({alignment:o.c?D.AlignmentType.CENTER:undefined,children:[new D.TextRun({text:t,bold:o.b,size:o.s||24,font:{ascii:"Arial",hAnsi:"Arial",eastAsia:"Noto Sans TC",cs:"Arial"}})]});
  const C=(ch,w,o={})=>new D.TableCell({width:{size:w,type:D.WidthType.DXA},borders:BR,verticalAlign:D.VerticalAlign.CENTER,shading:o.sh?{fill:o.sh,type:D.ShadingType.CLEAR}:undefined,children:(Array.isArray(ch)?ch:[ch]).map(x=>typeof x=="string"?P(x,o):x)});
  const rows=[["縣　市",`${v('city')}　　區域：${v('area')}`],["學　校",v('school')],["班　級",`${v('grade')} 年 ${v('cls')} 班　${v('floor')} F　${v('office')} 辦公室`],["姓　名",`${v('name')}　　性別：${v('gender')}`],["生　日",v('bday')],["電　話",`${v('phone')}　# ${v('ext')}`],["理財方式",[ck('fin'),"近期有無聽過? "+ck('heard')]],["理財規劃",[ck('plan'),"一個月1萬是否有壓力? "+ck('press')]]];
- const form=new D.Table({width:{size:5600,type:D.WidthType.DXA},rows:rows.map(([a,b])=>new D.TableRow({height:{value:520,rule:D.HeightRule.ATLEAST},children:[C(a,1300,{b:1,c:1}),C(b,4300)]}))});
- const g=new D.Table({width:{size:3400,type:D.WidthType.DXA},rows:[new D.TableRow({children:[C("",500),...DAYS.map(d=>C(d,580,{c:1}))]}),...PER.map(p=>new D.TableRow({height:{value:p=="午"?300:500,rule:D.HeightRule.ATLEAST},children:[C(p,500,{c:1}),...DAYS.map(d=>C(grid[d+p]?"✓":"",580,{c:1,b:1}))]}))]});
- const NB={top:{style:D.BorderStyle.NONE},bottom:{style:D.BorderStyle.NONE},left:{style:D.BorderStyle.NONE},right:{style:D.BorderStyle.NONE}};
- const outer=new D.Table({width:{size:9300,type:D.WidthType.DXA},borders:{...NB,insideHorizontal:{style:D.BorderStyle.NONE},insideVertical:{style:D.BorderStyle.NONE}},rows:[new D.TableRow({children:[new D.TableCell({borders:NB,width:{size:5800,type:D.WidthType.DXA},children:[form,P("")]}),new D.TableCell({borders:NB,width:{size:3500,type:D.WidthType.DXA},children:[g,P("")]})]})]});
- const doc=new D.Document({sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:900,bottom:900,left:900,right:900}}},children:[
-  P("優惠儲蓄專案",{b:1,c:1,s:36}),P(`現在時間：${v('now')}　　　約訪時間：${v('appt')}`),outer,P(ck('bot')),P(""),P("備註：",{b:1}),...v('notes').split("\n").map(l=>P(l))]}]});
+ const form=new D.Table({layout:D.TableLayoutType.FIXED,columnWidths:[1800,8300],width:{size:10100,type:D.WidthType.DXA},rows:rows.map(([a,b])=>new D.TableRow({height:{value:520,rule:D.HeightRule.ATLEAST},children:[C(a,1800,{b:1,c:1}),C(b,8300)]}))});
+ const g=new D.Table({layout:D.TableLayoutType.FIXED,columnWidths:[1100,1800,1800,1800,1800,1800],width:{size:10100,type:D.WidthType.DXA},rows:[new D.TableRow({children:[C("節",1100,{c:1,b:1}),...DAYS.map(d=>C("星期"+d,1800,{c:1,b:1}))]}),...PER.map(p=>new D.TableRow({height:{value:p=="午"?300:500,rule:D.HeightRule.ATLEAST},children:[C(p,1100,{c:1}),...DAYS.map(d=>C(grid[d+p]?"✔":"",1800,{c:1,b:1}))]}))]});
+ const doc=new D.Document({styles:{default:{document:{run:{font:{ascii:"Arial",hAnsi:"Arial",eastAsia:"Noto Sans TC"},size:24}}}},sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:900,bottom:900,left:900,right:900}}},children:[
+  P("優惠儲蓄專案",{b:1,c:1,s:36}),P(`現在時間：${v('now')}　　　約訪時間：${v('appt')}`),form,P(""),P("可約時段（✔ = 可約）",{b:1}),g,P(""),P(ck('bot')),P(""),P("備註：",{b:1}),...v('notes').split("\n").map(l=>P(l))]}]});
  if(cloud===true)return D.Packer.toBlob(doc);
  D.Packer.toBlob(doc).then(async b=>{const fn=`優惠儲蓄專案_${v('name')||'未命名'}.docx`;
  const file=new File([b],fn,{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
