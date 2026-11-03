@@ -1,4 +1,4 @@
-const C='form-v7';
+const C='form-v8';
 const LIBS=['https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js','https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>Promise.all(['./','./index.html',...LIBS].map(u=>c.add(u).catch(()=>{})))))});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
